@@ -392,33 +392,35 @@
   // (rBottom); each step between two lines has one of each.
   function shapePath(L, R, tops, bottoms, rTop, rBottom, squareTop = false, squareBottom = false) {
     const n = L.length;
-    const V = [[R[0], tops[0], squareTop ? 0 : rTop]];
+    // Each corner: [x, y, radius, nominal radius]. A squared corner draws with radius 0
+    // but keeps its nominal radius for sharing edges (below).
+    const top = squareTop ? 0 : rTop, bottom = squareBottom ? 0 : rBottom;
+    const V = [[R[0], tops[0], top, rTop]];
     for (let i = 0; i < n - 1; i++) {
       const a = R[i], b = R[i + 1];
       if (Math.abs(b - a) < 0.01) continue;
       const y = b < a ? bottoms[i] : tops[i + 1];
-      V.push([a, y, rBottom], [b, y, rTop]); // bottom of line i, top of line i+1
+      V.push([a, y, rBottom, rBottom], [b, y, rTop, rTop]); // bottom of line i, top of line i+1
     }
-    V.push([R[n - 1], bottoms[n - 1], squareBottom ? 0 : rBottom], [L[n - 1], bottoms[n - 1], squareBottom ? 0 : rBottom]);
+    V.push([R[n - 1], bottoms[n - 1], bottom, rBottom], [L[n - 1], bottoms[n - 1], bottom, rBottom]);
     for (let i = n - 2; i >= 0; i--) {
       const a = L[i + 1], b = L[i];
       if (Math.abs(b - a) < 0.01) continue;
       const y = a > b ? bottoms[i] : tops[i + 1];
-      V.push([a, y, rTop], [b, y, rBottom]); // top of line i+1, bottom of line i
+      V.push([a, y, rTop, rTop], [b, y, rBottom, rBottom]); // top of line i+1, bottom of line i
     }
-    V.push([L[0], tops[0], squareTop ? 0 : rTop]);
+    V.push([L[0], tops[0], top, rTop]);
 
-    // Corners sharing an edge split it in proportion to their size, like CSS border-radius,
-    // so together they never need more than the edge is long.
-    const want = V.map((v) => v[2]);
+    // Corners sharing an edge split it in proportion to their nominal size, like CSS
+    // border-radius, so together they never need more than the edge is long. Equal top and
+    // bottom values always split an edge in half.
     const share = (k, j) => {
       const len = Math.hypot(V[k][0] - V[j][0], V[k][1] - V[j][1]);
-      const sum = want[k] + want[j];
-      return sum > 0 ? (len * want[k]) / sum : 0;
+      const sum = V[k][3] + V[j][3];
+      return sum > 0 ? (len * V[k][3]) / sum : 0;
     };
-    V.forEach((v, k) => {
-      v[2] = Math.min(want[k], share(k, (k + V.length - 1) % V.length), share(k, (k + 1) % V.length));
-    });
+    const fit = V.map((v, k) => Math.min(v[2], share(k, (k + V.length - 1) % V.length), share(k, (k + 1) % V.length)));
+    V.forEach((v, k) => (v[2] = fit[k]));
 
     const sx = (L[0] + R[0]) / 2, sy = tops[0];
     ctx.moveTo(sx, sy);
