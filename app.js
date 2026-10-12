@@ -73,7 +73,8 @@
     box: "#ffffff",
     text: "#000000",
     opacity: 100, // box opacity, %
-    round: 20, // corner roundness, 0–100; 20 = M.radius, 100 = 5× that (enough for a full pill)
+    roundTop: 20, // corner roundness, 0–100; 20 = M.radius, 100 = 5× that (enough for a full pill)
+    roundBottom: 20,
     gap: 0, // gap between lines in hundredths of an em; 0 = lines touch
     join: "merge", // "merge": touching lines become one TikTok shape; "stack": one block per line
     padSide: 0, // extra padding in hundredths of an em, added to TikTok's own
@@ -87,7 +88,7 @@
   });
 
   // Everything a preset carries: the whole look, including where lines wrap, but not the text.
-  const PRESET_KEYS = ["font", "box", "text", "opacity", "round", "gap", "join", "padSide", "padTop", "padBottom", "accent", "lastBox", "lastText", "align", "width"];
+  const PRESET_KEYS = ["font", "box", "text", "opacity", "roundTop", "roundBottom", "gap", "join", "padSide", "padTop", "padBottom", "accent", "lastBox", "lastText", "align", "width"];
 
   const BUILTIN_PRESETS = [
     { id: "tiktok-classic", name: "TikTok Classic", style: {} },
@@ -95,7 +96,7 @@
       id: "get-known",
       name: "Get Known",
       // Montserrat ExtraBold; Ink #0A0A0A boxes with Paper #F2F0EC text, the payoff line Gold #C9A227 with Ink text.
-      style: { font: "montserrat", box: "#0a0a0a", text: "#f2f0ec", join: "stack", round: 40, padSide: 18.5, padTop: 26, padBottom: 20, accent: true, lastBox: "#c9a227", lastText: "#0a0a0a", width: 15 },
+      style: { font: "montserrat", box: "#0a0a0a", text: "#f2f0ec", join: "stack", roundTop: 40, roundBottom: 40, padSide: 18.5, padTop: 26, padBottom: 20, accent: true, lastBox: "#c9a227", lastText: "#0a0a0a", width: 15 },
     },
   ];
   const EMOJI_FONT = `${Math.round(F * 0.9)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
@@ -120,7 +121,7 @@
 
   const STYLE_KEY = "hook-gen-style";
 
-  const RANGES = { opacity: [0, 100], round: [0, 100], gap: [0, 100], padSide: [-40, 80], padTop: [-20, 80], padBottom: [-20, 80], width: [4, 30] };
+  const RANGES = { opacity: [0, 100], roundTop: [0, 100], roundBottom: [0, 100], gap: [0, 100], padSide: [-40, 80], padTop: [-20, 80], padBottom: [-20, 80], width: [4, 30] };
 
   // Defaults overridden by every valid field of v. Used for saved settings and for
   // presets, which can come from anyone, so nothing is trusted.
@@ -128,6 +129,8 @@
     const s = { ...DEFAULTS };
     if (!v || typeof v !== "object") return s;
     if (fontById.has(v.font)) s.font = v.font;
+    // Older settings and presets had one roundness for every corner.
+    if (typeof v.round === "number" && v.round >= 0 && v.round <= 100) s.roundTop = s.roundBottom = v.round;
     for (const k of ["box", "text", "lastBox", "lastText"]) if (typeof v[k] === "string" && /^#[0-9a-f]{6}$/i.test(v[k])) s[k] = v[k].toLowerCase();
     for (const [k, [lo, hi]] of Object.entries(RANGES)) if (typeof v[k] === "number" && v[k] >= lo && v[k] <= hi) s[k] = v[k];
     if (["left", "center", "right"].includes(v.align)) s.align = v.align;
@@ -385,31 +388,36 @@
 
   // Adds the outline of the stacked line boxes to the current path: rounded outer
   // corners, and concave rounded corners wherever a narrower line meets a wider one.
-  function shapePath(L, R, tops, bottoms, r, squareTop = false, squareBottom = false) {
+  // Every corner is either at the top of a line (radius rTop) or at the bottom of one
+  // (rBottom); each step between two lines has one of each.
+  function shapePath(L, R, tops, bottoms, rTop, rBottom, squareTop = false, squareBottom = false) {
     const n = L.length;
-    const rt = squareTop ? 0 : r, rb = squareBottom ? 0 : r;
-    const V = [[R[0], tops[0], rt]];
+    const V = [[R[0], tops[0], squareTop ? 0 : rTop]];
     for (let i = 0; i < n - 1; i++) {
-      const a = R[i], b = R[i + 1], d = Math.abs(b - a);
-      if (d < 0.01) continue;
+      const a = R[i], b = R[i + 1];
+      if (Math.abs(b - a) < 0.01) continue;
       const y = b < a ? bottoms[i] : tops[i + 1];
-      const rr = Math.min(r, d / 2);
-      V.push([a, y, rr], [b, y, rr]);
+      V.push([a, y, rBottom], [b, y, rTop]); // bottom of line i, top of line i+1
     }
-    V.push([R[n - 1], bottoms[n - 1], rb], [L[n - 1], bottoms[n - 1], rb]);
+    V.push([R[n - 1], bottoms[n - 1], squareBottom ? 0 : rBottom], [L[n - 1], bottoms[n - 1], squareBottom ? 0 : rBottom]);
     for (let i = n - 2; i >= 0; i--) {
-      const a = L[i + 1], b = L[i], d = Math.abs(b - a);
-      if (d < 0.01) continue;
+      const a = L[i + 1], b = L[i];
+      if (Math.abs(b - a) < 0.01) continue;
       const y = a > b ? bottoms[i] : tops[i + 1];
-      const rr = Math.min(r, d / 2);
-      V.push([a, y, rr], [b, y, rr]);
+      V.push([a, y, rTop], [b, y, rBottom]); // top of line i+1, bottom of line i
     }
-    V.push([L[0], tops[0], rt]);
+    V.push([L[0], tops[0], squareTop ? 0 : rTop]);
 
-    // A corner can use at most half of each edge it touches (matters for big radii).
-    const half = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) / 2;
+    // Corners sharing an edge split it in proportion to their size, like CSS border-radius,
+    // so together they never need more than the edge is long.
+    const want = V.map((v) => v[2]);
+    const share = (k, j) => {
+      const len = Math.hypot(V[k][0] - V[j][0], V[k][1] - V[j][1]);
+      const sum = want[k] + want[j];
+      return sum > 0 ? (len * want[k]) / sum : 0;
+    };
     V.forEach((v, k) => {
-      v[2] = Math.min(v[2], half(V[(k + V.length - 1) % V.length], v), half(v, V[(k + 1) % V.length]));
+      v[2] = Math.min(want[k], share(k, (k + V.length - 1) % V.length), share(k, (k + 1) % V.length));
     });
 
     const sx = (L[0] + R[0]) / 2, sy = tops[0];
@@ -465,7 +473,8 @@
     ctx.font = FONT;
     const n = lines.length;
     const shift = fontShift(lines.map((l) => tokenize(l).filter((t) => t.t === "text").map((t) => t.s).join("")).join(""));
-    const padX = (M.padX + S.padSide / 100) * F, r = M.radius * (S.round / 20) * F, margin = Math.ceil(M.margin * F);
+    const padX = (M.padX + S.padSide / 100) * F, margin = Math.ceil(M.margin * F);
+    const rTop = M.radius * (S.roundTop / 20) * F, rBottom = M.radius * (S.roundBottom / 20) * F;
     // How far the box reaches above / below the baseline, beyond TikTok's own (in em).
     const up = shift.a + S.padTop / 100, down = shift.d + S.padBottom / 100;
     const top = (M.rectTop + up) * F;
@@ -529,7 +538,7 @@
         ctx.fillStyle = accent && to === n - 1 ? S.lastBox : S.box;
         ctx.beginPath();
         // Corners where a block touches the one above or below stay square.
-        shapePath(span(L), span(R), span(tops), span(bottoms), r, from > 0 && sep[from] === 0, to < n - 1 && sep[to + 1] === 0);
+        shapePath(span(L), span(R), span(tops), span(bottoms), rTop, rBottom, from > 0 && sep[from] === 0, to < n - 1 && sep[to + 1] === 0);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -628,7 +637,7 @@
   const alignBtns = document.querySelectorAll("#alignGroup button");
   const joinBtns = document.querySelectorAll("[data-join]");
   const colorInputs = { box: $("boxColor"), text: $("textColor"), lastBox: $("lastBoxColor"), lastText: $("lastTextColor") };
-  const sliders = { opacity: $("opacity"), round: $("round"), gap: $("gap"), width: widthEl, padSide: $("padSide"), padTop: $("padTop"), padBottom: $("padBottom") };
+  const sliders = { opacity: $("opacity"), roundTop: $("roundTop"), roundBottom: $("roundBottom"), gap: $("gap"), width: widthEl, padSide: $("padSide"), padTop: $("padTop"), padBottom: $("padBottom") };
 
   const fontGroups = new Map();
   for (const f of FONTS) {
@@ -665,7 +674,8 @@
     $("accentRow").hidden = !S.accent;
     for (const [k, el] of Object.entries(sliders)) el.value = S[k];
     setText($("opacityOut"), `${S.opacity}%`);
-    setText($("roundOut"), withDefault(S.round, DEFAULTS.round));
+    setText($("roundTopOut"), withDefault(S.roundTop, DEFAULTS.roundTop));
+    setText($("roundBottomOut"), withDefault(S.roundBottom, DEFAULTS.roundBottom));
     setText($("gapOut"), S.gap === 0 ? (S.join === "merge" ? "None (default)" : "None") : String(S.gap));
     setText(widthOut, S.width.toFixed(1));
     for (const k of ["padSide", "padTop", "padBottom"]) setText($(`${k}Out`), withDefault(S[k], 0, S[k] > 0 ? `+${S[k]}` : String(S[k])));
