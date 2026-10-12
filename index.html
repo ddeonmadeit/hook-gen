@@ -8,7 +8,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:opsz,wght@12..36,300..900&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@300..900&display=swap">
   <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -41,6 +41,24 @@
         <div id="pickerScroll" class="picker-scroll"></div>
       </div>
 
+      <div id="setupPanel" class="setup" hidden>
+        <p><b>One-time setup for shared presets.</b> This creates the online store that everyone's presets are saved to.</p>
+        <button id="setupBtn" class="btn primary" type="button">Create shared preset store</button>
+        <p id="setupResult" class="status" role="status"></p>
+      </div>
+
+      <div class="section-head">
+        <h2>Presets</h2>
+        <button id="savePresetBtn" class="text-btn" type="button" aria-expanded="false" aria-controls="saveForm">+ Save current style</button>
+      </div>
+      <form id="saveForm" class="save-form" hidden>
+        <input id="presetName" type="text" maxlength="40" placeholder="Name your preset" aria-label="Preset name" autocomplete="off" required>
+        <button class="btn small primary" type="submit">Share</button>
+        <button id="saveCancel" class="btn small" type="button">Cancel</button>
+      </form>
+      <p id="presetStatus" class="status" role="status"></p>
+      <div id="presetList" class="preset-list"></div>
+
       <div class="section-head">
         <h2>Layout</h2>
         <button id="reset" class="text-btn" type="button" title="Put every layout and style setting back to the TikTok default">Reset to default</button>
@@ -54,15 +72,23 @@
           <input id="width" type="range" min="4" max="30" step="0.5" value="11.5">
         </div>
         <div class="control">
+          <span class="label" id="joinLabel">Line boxes</span>
+          <div class="segmented text" role="radiogroup" aria-labelledby="joinLabel">
+            <button type="button" role="radio" data-join="merge" aria-checked="true" title="Touching lines melt into one shape, like TikTok">Merged</button>
+            <button type="button" role="radio" data-join="stack" aria-checked="false" title="Every line gets its own block">Stacked</button>
+          </div>
+        </div>
+        <div class="control">
           <div class="field-head">
             <label for="gap">Gap between lines</label>
             <output id="gapOut" for="gap"></output>
           </div>
-          <input id="gap" type="range" min="0" max="100" step="1" value="0">
+          <input id="gap" type="range" min="0" max="100" step="1" value="0" aria-describedby="gapHint">
+          <p id="gapHint" class="hint control-hint">Tip: an empty line (Enter twice) adds a gap at just that spot.</p>
         </div>
         <div class="control">
           <span class="label">Align</span>
-          <div class="segmented" role="radiogroup" aria-label="Text alignment">
+          <div class="segmented" id="alignGroup" role="radiogroup" aria-label="Text alignment">
             <button type="button" role="radio" data-align="left" aria-checked="false" title="Left">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h9M3 15h12"/></svg>
             </button>
@@ -83,20 +109,44 @@
         <div class="control">
           <label for="font" class="label">Font</label>
           <select id="font" class="select"></select>
+          <p id="fontStatus" class="status" role="status"></p>
         </div>
         <div class="control">
           <span class="label" id="coloursLabel">Colours</span>
           <div id="presets" class="presets" role="group" aria-labelledby="coloursLabel"></div>
           <div class="color-row">
             <label class="color-field">
-              <input id="boxColor" type="color" value="#ffffff">
+              <input id="boxColor" type="color" value="#ffffff" list="palette">
               <span><b>Box</b> <span id="boxHex" class="hex"></span></span>
             </label>
             <label class="color-field">
-              <input id="textColor" type="color" value="#000000">
+              <input id="textColor" type="color" value="#000000" list="palette">
               <span><b>Text</b> <span id="textHex" class="hex"></span></span>
             </label>
           </div>
+          <label class="check">
+            <input id="accent" type="checkbox">
+            <span>Different colours for the last line</span>
+          </label>
+          <div id="accentRow" class="color-row" hidden>
+            <label class="color-field">
+              <input id="lastBoxColor" type="color" value="#c9a227" list="palette">
+              <span><b>Last box</b> <span id="lastBoxHex" class="hex"></span></span>
+            </label>
+            <label class="color-field">
+              <input id="lastTextColor" type="color" value="#0a0a0a" list="palette">
+              <span><b>Last text</b> <span id="lastTextHex" class="hex"></span></span>
+            </label>
+          </div>
+          <datalist id="palette">
+            <option value="#ffffff" label="White"></option>
+            <option value="#000000" label="Black"></option>
+            <option value="#0a0a0a" label="Ink"></option>
+            <option value="#c9a227" label="Gold"></option>
+            <option value="#f2f0ec" label="Paper"></option>
+            <option value="#fe2c55" label="TikTok red"></option>
+            <option value="#25f4ee" label="TikTok cyan"></option>
+          </datalist>
         </div>
         <div class="control">
           <div class="field-head">
@@ -111,6 +161,27 @@
             <output id="roundOut" for="round"></output>
           </div>
           <input id="round" type="range" min="0" max="100" step="1" value="20">
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="padSide">Side padding</label>
+            <output id="padSideOut" for="padSide"></output>
+          </div>
+          <input id="padSide" type="range" min="-40" max="80" step="0.5" value="0">
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="padTop">Top padding</label>
+            <output id="padTopOut" for="padTop"></output>
+          </div>
+          <input id="padTop" type="range" min="-20" max="80" step="0.5" value="0">
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="padBottom">Bottom padding</label>
+            <output id="padBottomOut" for="padBottom"></output>
+          </div>
+          <input id="padBottom" type="range" min="-20" max="80" step="0.5" value="0">
         </div>
       </div>
     </section>
