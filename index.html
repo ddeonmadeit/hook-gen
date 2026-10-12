@@ -8,7 +8,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400..800&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:opsz,wght@12..36,300..900&display=swap">
   <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -41,6 +41,10 @@
         <div id="pickerScroll" class="picker-scroll"></div>
       </div>
 
+      <div class="section-head">
+        <h2>Layout</h2>
+        <button id="reset" class="text-btn" type="button" title="Put every layout and style setting back to the TikTok default">Reset to default</button>
+      </div>
       <div class="controls">
         <div class="control">
           <div class="field-head">
@@ -48,6 +52,13 @@
             <output id="widthOut" for="width"></output>
           </div>
           <input id="width" type="range" min="4" max="30" step="0.5" value="11.5">
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="gap">Gap between lines</label>
+            <output id="gapOut" for="gap"></output>
+          </div>
+          <input id="gap" type="range" min="0" max="100" step="1" value="0">
         </div>
         <div class="control">
           <span class="label">Align</span>
@@ -62,6 +73,44 @@
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M8 10h9M5 15h12"/></svg>
             </button>
           </div>
+        </div>
+      </div>
+
+      <div class="section-head">
+        <h2>Style</h2>
+      </div>
+      <div class="controls">
+        <div class="control">
+          <label for="font" class="label">Font</label>
+          <select id="font" class="select"></select>
+        </div>
+        <div class="control">
+          <span class="label" id="coloursLabel">Colours</span>
+          <div id="presets" class="presets" role="group" aria-labelledby="coloursLabel"></div>
+          <div class="color-row">
+            <label class="color-field">
+              <input id="boxColor" type="color" value="#ffffff">
+              <span><b>Box</b> <span id="boxHex" class="hex"></span></span>
+            </label>
+            <label class="color-field">
+              <input id="textColor" type="color" value="#000000">
+              <span><b>Text</b> <span id="textHex" class="hex"></span></span>
+            </label>
+          </div>
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="opacity">Box opacity</label>
+            <output id="opacityOut" for="opacity"></output>
+          </div>
+          <input id="opacity" type="range" min="0" max="100" step="1" value="100">
+        </div>
+        <div class="control">
+          <div class="field-head">
+            <label for="round">Corner roundness</label>
+            <output id="roundOut" for="round"></output>
+          </div>
+          <input id="round" type="range" min="0" max="100" step="1" value="20">
         </div>
       </div>
     </section>

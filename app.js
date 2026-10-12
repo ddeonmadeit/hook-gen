@@ -16,9 +16,67 @@
     emojiTop: 0.83, // emoji image top above baseline
     margin: 0.04, // transparent margin around the PNG
   };
-  const WEIGHT = 600;
-  const FAMILY = '"TikTok Sans Hook", "TikTok Sans", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
-  const FONT = `${WEIGHT} ${F}px ${FAMILY}`;
+  // Hook fonts. The first is the TikTok default (self-hosted, see fonts/); the rest load
+  // from Google Fonts the first time they're picked. TikTok Sans variants come from the
+  // page's own TikTok Sans stylesheet.
+  const SANS = "system-ui, -apple-system, \"Segoe UI\", Roboto, Arial, sans-serif";
+  const FONTS = [
+    { id: "tiktok", name: "TikTok Sans (default)", group: "TikTok", family: '"TikTok Sans Hook", "TikTok Sans"', weight: 600, fallback: SANS },
+    { id: "tiktok-bold", name: "TikTok Sans Bold", group: "TikTok", family: '"TikTok Sans"', weight: 700, fallback: SANS },
+    { id: "tiktok-black", name: "TikTok Sans Black", group: "TikTok", family: '"TikTok Sans"', weight: 900, fallback: SANS },
+    { id: "montserrat", name: "Montserrat", group: "Sans", css: "Montserrat:wght@800", weight: 800, fallback: SANS },
+    { id: "poppins", name: "Poppins", group: "Sans", css: "Poppins:wght@700", weight: 700, fallback: SANS },
+    { id: "inter", name: "Inter", group: "Sans", css: "Inter:wght@700", weight: 700, fallback: SANS },
+    { id: "roboto", name: "Roboto", group: "Sans", css: "Roboto:wght@700", weight: 700, fallback: SANS },
+    { id: "rubik", name: "Rubik", group: "Sans", css: "Rubik:wght@700", weight: 700, fallback: SANS },
+    { id: "nunito", name: "Nunito", group: "Sans", css: "Nunito:wght@800", weight: 800, fallback: SANS },
+    { id: "fredoka", name: "Fredoka", group: "Sans", css: "Fredoka:wght@600", weight: 600, fallback: SANS },
+    { id: "bebas", name: "Bebas Neue", group: "Display", css: "Bebas+Neue", weight: 400, fallback: SANS },
+    { id: "anton", name: "Anton", group: "Display", css: "Anton", weight: 400, fallback: SANS },
+    { id: "oswald", name: "Oswald", group: "Display", css: "Oswald:wght@600", weight: 600, fallback: SANS },
+    { id: "archivo-black", name: "Archivo Black", group: "Display", css: "Archivo+Black", weight: 400, fallback: SANS },
+    { id: "lilita", name: "Lilita One", group: "Display", css: "Lilita+One", weight: 400, fallback: SANS },
+    { id: "playfair", name: "Playfair Display", group: "Serif", css: "Playfair+Display:wght@700", weight: 700, fallback: "Georgia, serif" },
+    { id: "dm-serif", name: "DM Serif Display", group: "Serif", css: "DM+Serif+Display", weight: 400, fallback: "Georgia, serif" },
+    { id: "instrument-serif", name: "Instrument Serif", group: "Serif", css: "Instrument+Serif", weight: 400, fallback: "Georgia, serif" },
+    { id: "abril", name: "Abril Fatface", group: "Serif", css: "Abril+Fatface", weight: 400, fallback: "Georgia, serif" },
+    { id: "courier-prime", name: "Courier Prime", group: "Typewriter", css: "Courier+Prime:wght@700", weight: 700, fallback: '"Courier New", monospace' },
+    { id: "space-mono", name: "Space Mono", group: "Typewriter", css: "Space+Mono:wght@700", weight: 700, fallback: '"Courier New", monospace' },
+    { id: "caveat", name: "Caveat", group: "Handwritten", css: "Caveat:wght@700", weight: 700, fallback: "cursive" },
+    { id: "permanent-marker", name: "Permanent Marker", group: "Handwritten", css: "Permanent+Marker", weight: 400, fallback: "cursive" },
+    { id: "pacifico", name: "Pacifico", group: "Handwritten", css: "Pacifico", weight: 400, fallback: "cursive" },
+    { id: "lobster", name: "Lobster", group: "Handwritten", css: "Lobster", weight: 400, fallback: "cursive" },
+    { id: "comic-neue", name: "Comic Neue", group: "Handwritten", css: "Comic+Neue:wght@700", weight: 700, fallback: "cursive" },
+  ];
+  for (const f of FONTS) if (!f.family) f.family = `"${f.name}"`;
+  const fontById = new Map(FONTS.map((f) => [f.id, f]));
+  const fontString = (f) => `${f.weight} ${F}px ${f.family}, ${f.fallback}`;
+  const REF_FONT = fontString(FONTS[0]);
+
+  // Box colour / text colour pairs offered as one-tap presets. The first is the default.
+  const PRESETS = [
+    ["#ffffff", "#000000"],
+    ["#000000", "#ffffff"],
+    ["#fe2c55", "#ffffff"],
+    ["#25f4ee", "#000000"],
+    ["#ffd60a", "#000000"],
+    ["#ff9500", "#ffffff"],
+    ["#34c759", "#ffffff"],
+    ["#3496f0", "#ffffff"],
+    ["#8b5cf6", "#ffffff"],
+    ["#ff8fc7", "#000000"],
+  ];
+
+  const DEFAULTS = Object.freeze({
+    font: "tiktok",
+    box: "#ffffff",
+    text: "#000000",
+    opacity: 100, // box opacity, %
+    round: 20, // corner roundness, 0–100; 20 = M.radius, 100 = 5× that (enough for a full pill)
+    gap: 0, // gap between lines in hundredths of an em; 0 = joined (TikTok default)
+    width: 11.5, // line width in em
+    align: "center",
+  });
   const EMOJI_FONT = `${Math.round(F * 0.9)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
   const PREVIEW_SCALE = 0.5;
 
@@ -36,7 +94,79 @@
   const canvas = $("canvas");
   const ctx = canvas.getContext("2d");
 
-  const state = { align: "center" };
+  // ---------- Settings ----------
+
+  const STYLE_KEY = "hook-gen-style";
+
+  function loadStyle() {
+    const s = { ...DEFAULTS };
+    try {
+      const v = JSON.parse(localStorage.getItem(STYLE_KEY) || "null");
+      if (v && typeof v === "object") {
+        if (fontById.has(v.font)) s.font = v.font;
+        for (const k of ["box", "text"]) if (/^#[0-9a-f]{6}$/i.test(v[k])) s[k] = v[k].toLowerCase();
+        for (const [k, lo, hi] of [["opacity", 0, 100], ["round", 0, 100], ["gap", 0, 100], ["width", 4, 30]]) {
+          if (typeof v[k] === "number" && v[k] >= lo && v[k] <= hi) s[k] = v[k];
+        }
+        if (["left", "center", "right"].includes(v.align)) s.align = v.align;
+      }
+    } catch {}
+    return s;
+  }
+  const saveStyle = () => {
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify(S));
+    } catch {}
+  };
+
+  const S = loadStyle();
+  // The font being drawn. A newly picked font takes over once it has loaded,
+  // so the preview never flashes a fallback font.
+  let activeFont = FONTS[0];
+  let FONT = fontString(activeFont);
+
+  // Google Fonts stylesheets, added on first use.
+  const fontSheets = new Map();
+  function ensureFont(f, text) {
+    let sheet = fontSheets.get(f.id);
+    if (!sheet) {
+      sheet = Promise.resolve();
+      if (f.css) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${f.css}&display=block`;
+        sheet = new Promise((resolve) => (link.onload = link.onerror = resolve));
+        document.head.appendChild(link);
+      }
+      fontSheets.set(f.id, sheet);
+    }
+    // The extra letters are the ones fontShift() measures.
+    return sheet.then(() => document.fonts.load(fontString(f), `${text || ""}Hdlkfbgjpqy`)).catch(() => {});
+  }
+
+  function applyFont() {
+    const f = fontById.get(S.font) || FONTS[0];
+    return ensureFont(f, textEl.value).then(() => {
+      if (S.font !== f.id || activeFont === f) return;
+      activeFont = f;
+      FONT = fontString(f);
+      queueRender();
+    });
+  }
+
+  // How much taller / deeper the active font's letters reach than TikTok Sans, in em.
+  // The box grows or shrinks by that much so every font keeps the same padding.
+  function fontShift() {
+    if (FONT === REF_FONT) return { a: 0, d: 0 };
+    const ink = (font) => {
+      ctx.font = font;
+      return [ctx.measureText("Hdlkfb").actualBoundingBoxAscent / F, ctx.measureText("gjpqy").actualBoundingBoxDescent / F];
+    };
+    const [ra, rd] = ink(REF_FONT);
+    const [ca, cd] = ink(FONT);
+    ctx.font = FONT;
+    return { a: ca - ra, d: cd - rd };
+  }
 
   // ---------- Emoji lookup ----------
 
@@ -186,8 +316,8 @@
 
   // ---------- Shape ----------
 
-  // Outline of the stacked line boxes: rounded outer corners, and concave
-  // rounded corners wherever a narrower line meets a wider one.
+  // Adds the outline of the stacked line boxes to the current path: rounded outer
+  // corners, and concave rounded corners wherever a narrower line meets a wider one.
   function shapePath(L, R, tops, bottoms, r) {
     const n = L.length;
     const V = [[R[0], tops[0], r]];
@@ -208,8 +338,13 @@
     }
     V.push([L[0], tops[0], r]);
 
+    // A corner can use at most half of each edge it touches (matters for big radii).
+    const half = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) / 2;
+    V.forEach((v, k) => {
+      v[2] = Math.min(v[2], half(V[(k + V.length - 1) % V.length], v), half(v, V[(k + 1) % V.length]));
+    });
+
     const sx = (L[0] + R[0]) / 2, sy = tops[0];
-    ctx.beginPath();
     ctx.moveTo(sx, sy);
     for (let k = 0; k < V.length; k++) {
       const [x, y, rad] = V[k];
@@ -240,7 +375,7 @@
 
   function layout() {
     ctx.font = FONT;
-    const lines = wrap(smarten(textEl.value), parseFloat(widthEl.value) * F);
+    const lines = wrap(smarten(textEl.value), S.width * F);
     const emoji = [];
     for (const l of lines) for (const tok of tokenize(l)) if (tok.t === "emoji") emoji.push(tok.u);
     return { lines, emoji };
@@ -260,24 +395,33 @@
     }
 
     ctx.font = FONT;
-    const padX = M.padX * F, r = M.radius * F, margin = Math.ceil(M.margin * F);
+    const shift = fontShift();
+    const padX = M.padX * F, r = M.radius * (S.round / 20) * F, margin = Math.ceil(M.margin * F);
+    // Gap 0 joins the lines into one TikTok-style shape; any gap gives each line its own box.
+    const joined = S.gap === 0;
+    const top = (M.rectTop + shift.a) * F;
+    const bottom = (M.rectBottom + shift.d) * F;
+    const lastBottom = (M.lastBottom + shift.d) * F;
+    const pitch = joined ? M.pitch + shift.a + shift.d : (top + lastBottom) / F + S.gap / 100;
     const widths = lines.map(measure);
     const boxW = widths.map((w) => w + 2 * padX);
     const maxW = Math.max(...boxW);
 
     const L = [], R = [], textX = [], baselines = [], tops = [], bottoms = [];
     lines.forEach((_, i) => {
-      const x = state.align === "left" ? 0 : state.align === "right" ? maxW - boxW[i] : (maxW - boxW[i]) / 2;
+      const x = S.align === "left" ? 0 : S.align === "right" ? maxW - boxW[i] : (maxW - boxW[i]) / 2;
       L.push(x + margin);
       R.push(x + boxW[i] + margin);
       textX.push(x + padX + margin);
-      const base = margin + M.rectTop * F + i * M.pitch * F;
+      const base = margin + top + i * pitch * F;
       baselines.push(base);
-      tops.push(base - M.rectTop * F);
-      bottoms.push(base + (i === lines.length - 1 ? M.lastBottom : M.rectBottom) * F);
+      tops.push(base - top);
+      bottoms.push(base + (!joined || i === lines.length - 1 ? lastBottom : bottom));
     });
-    snapEdges(L, Math.min);
-    snapEdges(R, Math.max);
+    if (joined) {
+      snapEdges(L, Math.min);
+      snapEdges(R, Math.max);
+    }
 
     const W = Math.ceil(maxW + 2 * margin);
     const H = Math.ceil(bottoms[bottoms.length - 1] + margin);
@@ -288,11 +432,17 @@
     canvas.style.width = `${Math.round(W * PREVIEW_SCALE)}px`;
 
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = "#fff";
-    shapePath(L, R, tops, bottoms, r);
-    ctx.fill();
+    if (S.opacity > 0) {
+      ctx.fillStyle = S.box;
+      ctx.globalAlpha = S.opacity / 100;
+      ctx.beginPath();
+      if (joined) shapePath(L, R, tops, bottoms, r);
+      else lines.forEach((_, i) => shapePath([L[i]], [R[i]], [tops[i]], [bottoms[i]], r));
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = S.text;
     ctx.textBaseline = "alphabetic";
     lines.forEach((line, i) => {
       let x = textX[i];
@@ -318,7 +468,7 @@
   }
 
   async function renderReady() {
-    await document.fonts.load(FONT, textEl.value || "a").catch(() => {});
+    await applyFont();
     render();
     await Promise.all(current.emoji.map((u) => emojiImage(u).ready));
     render();
@@ -368,24 +518,102 @@
 
   // ---------- Controls ----------
 
-  const showWidth = () => (widthOut.textContent = `${parseFloat(widthEl.value).toFixed(1)}`);
-  showWidth();
+  const fontEl = $("font");
+  const boxEl = $("boxColor");
+  const textColorEl = $("textColor");
+  const opacityEl = $("opacity");
+  const roundEl = $("round");
+  const gapEl = $("gap");
+  const presetsEl = $("presets");
+  const alignBtns = document.querySelectorAll(".segmented button");
+
+  const groups = new Map();
+  for (const f of FONTS) {
+    if (!groups.has(f.group)) groups.set(f.group, fontEl.appendChild(Object.assign(document.createElement("optgroup"), { label: f.group })));
+    groups.get(f.group).appendChild(new Option(f.name, f.id));
+  }
+
+  for (const [box, text] of PRESETS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = "Aa";
+    b.style.background = box;
+    b.style.color = text;
+    b.dataset.box = box;
+    b.dataset.text = text;
+    b.setAttribute("aria-label", `${box} box with ${text} text`);
+    b.title = `Box ${box.toUpperCase()}, text ${text.toUpperCase()}`;
+    presetsEl.appendChild(b);
+  }
+
+  // Puts every control in line with S.
+  function syncControls() {
+    fontEl.value = S.font;
+    boxEl.value = S.box;
+    textColorEl.value = S.text;
+    $("boxHex").textContent = S.box.toUpperCase();
+    $("textHex").textContent = S.text.toUpperCase();
+    presetsEl.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.box === S.box && b.dataset.text === S.text)));
+    opacityEl.value = S.opacity;
+    $("opacityOut").textContent = `${S.opacity}%`;
+    roundEl.value = S.round;
+    $("roundOut").textContent = S.round === DEFAULTS.round ? `${S.round} (default)` : String(S.round);
+    gapEl.value = S.gap;
+    $("gapOut").textContent = S.gap === 0 ? "Joined (default)" : String(S.gap);
+    widthEl.value = S.width;
+    widthOut.textContent = S.width.toFixed(1);
+    alignBtns.forEach((b) => b.setAttribute("aria-checked", String(b.dataset.align === S.align)));
+  }
+
+  function changed() {
+    syncControls();
+    saveStyle();
+    queueRender();
+  }
 
   textEl.addEventListener("input", () => {
     queueRender();
     document.fonts.load(FONT, textEl.value || "a").then(queueRender, () => {});
   });
-  widthEl.addEventListener("input", () => {
-    showWidth();
-    queueRender();
+  fontEl.addEventListener("change", () => {
+    S.font = fontEl.value;
+    changed();
+    applyFont();
   });
-  document.querySelectorAll(".segmented button").forEach((btn) => {
+  boxEl.addEventListener("input", () => {
+    S.box = boxEl.value.toLowerCase();
+    changed();
+  });
+  textColorEl.addEventListener("input", () => {
+    S.text = textColorEl.value.toLowerCase();
+    changed();
+  });
+  presetsEl.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-box]");
+    if (!b) return;
+    S.box = b.dataset.box;
+    S.text = b.dataset.text;
+    changed();
+  });
+  for (const [el, key] of [[opacityEl, "opacity"], [roundEl, "round"], [gapEl, "gap"], [widthEl, "width"]]) {
+    el.addEventListener("input", () => {
+      S[key] = Number(el.value);
+      changed();
+    });
+  }
+  alignBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
-      state.align = btn.dataset.align;
-      document.querySelectorAll(".segmented button").forEach((b) => b.setAttribute("aria-checked", String(b === btn)));
-      queueRender();
+      S.align = btn.dataset.align;
+      changed();
     });
   });
+  $("reset").addEventListener("click", () => {
+    Object.assign(S, DEFAULTS);
+    changed();
+    applyFont();
+  });
+
+  syncControls();
 
   // ---------- Emoji picker ----------
 
