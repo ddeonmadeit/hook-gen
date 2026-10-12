@@ -201,7 +201,13 @@ textarea:focus, input[type="search"]:focus { outline: 2px solid var(--accent); o
   place-items: center;
 }
 .grid button:hover { background: var(--hover); }
-.grid img { width: 30px; height: 30px; display: block; }
+.sp {
+  width: 30px;
+  height: 30px;
+  display: block;
+  background-size: 480px auto; /* 16 sheet columns × 30px */
+  background-repeat: no-repeat;
+}
 .picker-empty { color: var(--muted); text-align: center; padding: 24px 0; }
 
 .controls { display: grid; gap: 16px; margin-top: 18px; }

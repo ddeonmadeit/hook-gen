@@ -23,8 +23,11 @@
   const PREVIEW_SCALE = 0.5;
 
   const DATA = window.HOOK_EMOJI;
-  const IMG_HI = (u) => `https://cdn.jsdelivr.net/gh/iamcal/emoji-data@v${DATA.version}/img-apple-160/${u}.png`;
-  const IMG_LO = (u) => `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@${DATA.version}/img/apple/64/${u}.png`;
+  // Self-hosted Apple emoji (built by scripts/build-emoji-assets.py).
+  const IMG_HI = (u) => `emoji/160/${u}.webp`;
+  const SHEET = (i) => `emoji/sheets/${i}.webp`;
+  const SHEET_COLS = 16; // keep in sync with build-emoji-assets.py
+  const SHEET_CELL = 64;
 
   const $ = (id) => document.getElementById(id);
   const textEl = $("text");
@@ -43,6 +46,10 @@
   const emojiByKey = new Map();
   for (const cat of DATA.cats) for (const [u] of cat.items) emojiByKey.set(stripFe0f(u), u);
   for (const u of DATA.extra) if (!emojiByKey.has(stripFe0f(u))) emojiByKey.set(stripFe0f(u), u);
+
+  // Where each picker emoji sits in its category's sprite sheet.
+  const sheetPos = new Map();
+  DATA.cats.forEach((cat, i) => cat.items.forEach(([u], k) => sheetPos.set(u, { cat: i, col: k % SHEET_COLS, row: Math.floor(k / SHEET_COLS) })));
 
   // Single characters that are normally typed as plain text (©, ™, arrows…) stay text
   // unless they carry the emoji variation selector.
@@ -91,20 +98,38 @@
     });
   };
 
-  function emojiImage(u) {
-    let e = imgCache.get(u);
+  function loadImage(src) {
+    let e = imgCache.get(src);
     if (!e) {
       const img = new Image();
-      img.crossOrigin = "anonymous";
       e = { img, ok: false, done: false };
       e.ready = new Promise((resolve) => {
         img.onload = () => { e.ok = true; e.done = true; resolve(); queueRender(); };
         img.onerror = () => { e.done = true; resolve(); queueRender(); };
       });
-      img.src = IMG_HI(u);
-      imgCache.set(u, e);
+      img.src = src;
+      imgCache.set(src, e);
     }
     return e;
+  }
+
+  const emojiImage = (u) => loadImage(IMG_HI(u));
+  const sheetImage = (i) => loadImage(SHEET(i));
+
+  // Draws the full-size emoji, or the picker's sprite sheet copy while that is still loading.
+  function drawEmoji(u, x, y, size) {
+    const e = emojiImage(u);
+    if (e.ok) {
+      ctx.drawImage(e.img, x, y, size, size);
+      return true;
+    }
+    const pos = sheetPos.get(u);
+    const sheet = pos && imgCache.get(SHEET(pos.cat));
+    if (sheet && sheet.ok) {
+      ctx.drawImage(sheet.img, pos.col * SHEET_CELL, pos.row * SHEET_CELL, SHEET_CELL, SHEET_CELL, x, y, size, size);
+      return true;
+    }
+    return !e.done;
   }
 
   // ---------- Text ----------
@@ -280,10 +305,7 @@
           continue;
         }
         const size = M.emojiSize * F;
-        const e = emojiImage(tok.u);
-        if (e.ok) {
-          ctx.drawImage(e.img, x, base - M.emojiTop * F, size, size);
-        } else if (e.done) {
+        if (!drawEmoji(tok.u, x, base - M.emojiTop * F, size)) {
           ctx.font = EMOJI_FONT;
           ctx.fillText(tok.s, x, base);
         }
@@ -375,12 +397,11 @@
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const RECENT_KEY = "hook-gen-recent";
   let built = false;
-  let observer = null;
 
   const loadRecent = () => {
     try {
       const v = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
-      return Array.isArray(v) ? v.filter((u) => typeof u === "string" && emojiByKey.has(stripFe0f(u))) : [];
+      return Array.isArray(v) ? v.filter((u) => sheetPos.has(u)) : [];
     } catch {
       return [];
     }
@@ -394,37 +415,51 @@
   const names = new Map();
   for (const cat of DATA.cats) for (const [u, n] of cat.items) names.set(u, n);
 
-  function emojiButton(u, lazy) {
+  // Picker cells are drawn from one sprite sheet per category. A sheet is loaded
+  // once, then a CSS rule paints every cell of that category at the same time.
+  const PICK = 30; // cell size in CSS px
+  const sheetStyle = document.head.appendChild(document.createElement("style"));
+  const sheetOn = new Set();
+  function useSheet(i) {
+    const e = sheetImage(i);
+    if (!sheetOn.has(i)) {
+      sheetOn.add(i);
+      e.ready.then(() => {
+        sheetStyle.textContent += `.sp.c${i}{background-image:url("${SHEET(i)}")}`;
+      });
+    }
+    return e.ready;
+  }
+
+  function emojiButton(u) {
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.u = u;
     const label = (names.get(u) || "").split(" ").slice(0, 3).join(" ");
     b.title = label;
-    const img = document.createElement("img");
-    img.alt = label || toChar(u);
-    img.width = 30;
-    img.height = 30;
-    if (lazy && observer) {
-      img.dataset.src = IMG_LO(u);
-      observer.observe(img);
-    } else {
-      img.src = IMG_LO(u);
-    }
-    b.appendChild(img);
+    b.setAttribute("aria-label", label || toChar(u));
+    const pos = sheetPos.get(u);
+    const sp = document.createElement("span");
+    sp.className = `sp c${pos.cat}`;
+    sp.style.backgroundPosition = `-${pos.col * PICK}px -${pos.row * PICK}px`;
+    b.appendChild(sp);
     return b;
   }
 
-  function section(id, title, list, lazy) {
+  function section(id, title, list) {
     const s = document.createElement("section");
     s.dataset.section = id;
     const h = document.createElement("h4");
     h.textContent = title;
     const grid = document.createElement("div");
     grid.className = "grid";
-    for (const u of list) grid.appendChild(emojiButton(u, lazy));
+    for (const u of list) grid.appendChild(emojiButton(u));
     s.append(h, grid);
     return s;
   }
+
+  // Loads the sheets for a list of emoji, e.g. recents or search results.
+  const useSheetsFor = (list) => new Set(list.map((u) => sheetPos.get(u).cat)).forEach(useSheet);
 
   function tab(id, title, icon) {
     const b = document.createElement("button");
@@ -432,7 +467,7 @@
     b.title = title;
     b.dataset.target = id;
     const img = document.createElement("img");
-    img.src = IMG_LO(icon);
+    img.src = IMG_HI(icon);
     img.alt = title;
     b.appendChild(img);
     return b;
@@ -443,30 +478,30 @@
     scroller.querySelector('[data-section="recent"]')?.remove();
     tabs.querySelector('[data-target="recent"]')?.remove();
     if (!recent.length) return;
-    scroller.prepend(section("recent", "Recently used", recent, false));
+    useSheetsFor(recent);
+    scroller.prepend(section("recent", "Recently used", recent));
     tabs.prepend(tab("recent", "Recently used", "1f550"));
   }
 
-  function buildPicker() {
+  async function buildPicker() {
     if (built) return;
     built = true;
-    if ("IntersectionObserver" in window) {
-      observer = new IntersectionObserver(
-        (entries) => {
-          for (const en of entries) {
-            if (!en.isIntersecting) continue;
-            en.target.src = en.target.dataset.src;
-            observer.unobserve(en.target);
-          }
-        },
-        { root: scroller, rootMargin: "300px 0px" }
-      );
-    }
     DATA.cats.forEach((cat, i) => {
-      scroller.appendChild(section(`c${i}`, cat.name, cat.items.map((x) => x[0]), true));
+      scroller.appendChild(section(`c${i}`, cat.name, cat.items.map((x) => x[0])));
       tabs.appendChild(tab(`c${i}`, cat.name, cat.icon));
     });
     renderRecentSection();
+    // Whatever is on screen loads first; the rest follow one by one in the background.
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const en of entries) if (en.isIntersecting) useSheet(Number(en.target.dataset.section.slice(1)));
+        },
+        { root: scroller, rootMargin: "200px 0px" }
+      );
+      scroller.querySelectorAll('section[data-section^="c"]').forEach((s) => io.observe(s));
+    }
+    for (let i = 0; i < DATA.cats.length; i++) await useSheet(i);
   }
 
   // Until the textarea has been focused its caret sits at 0, so append instead.
@@ -555,11 +590,14 @@
       scroller.prepend(p);
       return;
     }
-    scroller.prepend(section("results", `Results for “${search.value.trim()}”`, hits, false));
+    useSheetsFor(hits);
+    scroller.prepend(section("results", `Results for “${search.value.trim()}”`, hits));
     scroller.scrollTop = 0;
   });
 
   // ---------- Start ----------
 
   renderReady();
+  // Warm up the first picker page so it opens instantly.
+  (window.requestIdleCallback || setTimeout)(() => useSheet(0));
 })();
