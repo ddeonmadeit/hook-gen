@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hook Generator</title>
+  <meta name="description" content="Make TikTok-style text hooks with Apple emoji and download them as transparent PNGs.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=TikTok+Sans:wght@400..800&display=swap">
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Hook Generator</h1>
+    <p>TikTok-style text with real Apple emoji. Type, then download a transparent PNG.</p>
+  </header>
+
+  <main class="layout">
+    <section class="card editor" aria-label="Editor">
+      <div class="field-head">
+        <label for="text">Your hook</label>
+        <span class="hint">Enter = new line</span>
+      </div>
+      <div class="input-wrap">
+        <textarea id="text" rows="4" spellcheck="true" placeholder="Type your hook…">This website predicts if you’ll go viral 🚀📈</textarea>
+        <button id="emojiBtn" class="emoji-btn" type="button" aria-expanded="false" aria-controls="picker" title="Add Apple emoji">
+          <img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64/1f600.png" alt="" width="26" height="26">
+          <span>Emoji</span>
+        </button>
+      </div>
+
+      <div id="picker" class="picker" hidden>
+        <div class="picker-head">
+          <input id="emojiSearch" type="search" placeholder="Search emoji" autocomplete="off" aria-label="Search emoji">
+          <button id="pickerClose" class="icon-btn" type="button" aria-label="Close emoji picker">✕</button>
+        </div>
+        <nav id="pickerTabs" class="picker-tabs" aria-label="Emoji categories"></nav>
+        <div id="pickerScroll" class="picker-scroll"></div>
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <div class="field-head">
+            <label for="width">Line width</label>
+            <output id="widthOut" for="width"></output>
+          </div>
+          <input id="width" type="range" min="4" max="30" step="0.5" value="11.5">
+        </div>
+        <div class="control">
+          <span class="label">Align</span>
+          <div class="segmented" role="radiogroup" aria-label="Text alignment">
+            <button type="button" role="radio" data-align="left" aria-checked="false" title="Left">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h9M3 15h12"/></svg>
+            </button>
+            <button type="button" role="radio" data-align="center" aria-checked="true" title="Center">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M5.5 10h9M4 15h12"/></svg>
+            </button>
+            <button type="button" role="radio" data-align="right" aria-checked="false" title="Right">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M8 10h9M5 15h12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card preview" aria-label="Preview">
+      <div class="stage" id="stage">
+        <canvas id="canvas" aria-label="Hook preview"></canvas>
+        <p id="empty" class="empty" hidden>Type something to see your hook</p>
+      </div>
+      <div class="actions">
+        <button id="download" class="btn primary" type="button">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12"/></svg>
+          Download PNG
+        </button>
+        <button id="copy" class="btn" type="button" hidden>Copy image</button>
+      </div>
+      <p id="meta" class="meta"></p>
+    </section>
+  </main>
+
+  <script src="emoji-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
